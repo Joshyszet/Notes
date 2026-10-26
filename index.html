@@ -10,20 +10,102 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 30px;
+      max-width: 850px;
+      margin: 30px auto;
+      padding: 0 18px;
       line-height: 1.6;
+      background: #f7f8fa;
+      color: #222;
     }
 
     h1 {
-      margin-bottom: 20px;
+      margin-bottom: 8px;
     }
 
-    .notes {
+    .subtitle {
+      color: #666;
+    }
+
+    .add-note {
+      display: flex;
+      gap: 8px;
+      margin: 22px 0;
+    }
+
+    #noteInput {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
       font-size: 16px;
     }
 
-    .note {
-      margin: 12px 0;
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .add-button {
+      background: #1769e0;
+      color: white;
+    }
+
+    #noteList {
+      padding: 0;
+      list-style: none;
+    }
+
+    .note-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      background: white;
+      border: 1px solid #e2e5e9;
+      border-radius: 8px;
+    }
+
+    .note-item.done .note-text {
+      text-decoration: line-through;
+      color: #888;
+    }
+
+    .note-text {
+      flex: 1;
+      overflow-wrap: anywhere;
+    }
+
+    .note-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .delete-button {
+      background: #ffe9e9;
+      color: #a00000;
+    }
+
+    .secondary-button {
+      background: #e7eaf0;
+      color: #222;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    #status {
+      color: #555;
+      font-size: 13px;
     }
 
     #music {
@@ -34,21 +116,49 @@
       height: 200px;
       border: 0;
     }
+
+    @media (max-width: 480px) {
+      .add-note {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 
 <body>
   <h1>Floor Planning Notes</h1>
+  <p class="subtitle">
+    Add tasks, check completed work, and remove notes when needed.
+  </p>
 
-  <div class="notes">
-    <p class="note">1. Double Check in Shed first</p>
-    <p class="note">2. Before exporting the Floor plan you should check if they have special doors</p>
-    <p class="note">3. Correcting Furniture Placement</p>
-    <p class="note">4. Checking alignment</p>
-    <p class="note">5. Double Check Furniture placement</p>
+  <form class="add-note" id="noteForm">
+    <input
+      id="noteInput"
+      type="text"
+      placeholder="Type a new floor planning note..."
+      autocomplete="off"
+      required
+    >
+    <button class="add-button" type="submit">+ Add Note</button>
+  </form>
+
+  <p id="noteCount"></p>
+  <ul id="noteList"></ul>
+
+  <div class="actions">
+    <button class="secondary-button" id="clearCompleted" type="button">
+      Clear Completed
+    </button>
+    <button class="secondary-button" id="resetNotes" type="button">
+      Restore Original Notes
+    </button>
   </div>
 
-  <!-- Hidden YouTube playlist player -->
+  <p id="status" aria-live="polite">
+    Notes are saved in this browser.
+  </p>
+
+  <!-- YOUR MUSIC PLAYLISTS: IDs preserved -->
   <iframe
     id="music"
     src="https://www.youtube.com/embed/videoseries?list=RDN3wuLceSQPA&enablejsapi=1&autoplay=0"
@@ -58,10 +168,16 @@
   ></iframe>
 
   <script>
-    const music = document.getElementById("music");
+    // Original notes
+    const originalNotes = [
+      "Double Check in Shed first",
+      "Before exporting the Floor plan you should check if they have special doors",
+      "Correcting Furniture Placement",
+      "Checking alignment",
+      "Double Check Furniture placement"
+    ];
 
-    // Add your YouTube playlist IDs here.
-    // The first playlist is the default.
+    // ALL FIVE OF YOUR ORIGINAL PLAYLIST IDS
     const playlists = [
       "RDCYqYGSzGHHM",
       "RDN3wuLceSQPA",
@@ -70,26 +186,151 @@
       "RDYQ-qToZUybM"
     ];
 
-    let currentPlaylist = 0;
+    const STORAGE_KEY = "floorPlanningNotes_v1";
+
+    const music = document.getElementById("music");
+    const noteForm = document.getElementById("noteForm");
+    const noteInput = document.getElementById("noteInput");
+    const noteList = document.getElementById("noteList");
+    const noteCount = document.getElementById("noteCount");
+    const status = document.getElementById("status");
+
+    let currentPlaylist = 1; // Starts with RDN3wuLceSQPA
     let started = false;
     let paused = false;
 
+    function loadNotes() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (saved !== null) {
+          const parsed = JSON.parse(saved);
+
+          if (Array.isArray(parsed)) {
+            return parsed.filter(note =>
+              note &&
+              typeof note.text === "string" &&
+              typeof note.done === "boolean"
+            );
+          }
+        }
+      } catch (error) {
+        console.warn("Could not load saved notes.", error);
+      }
+
+      return originalNotes.map(text => ({
+        text,
+        done: false
+      }));
+    }
+
+    let notes = loadNotes();
+
+    function saveNotes() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+        status.textContent = "Notes saved in this browser.";
+      } catch (error) {
+        status.textContent =
+          "Could not save notes. Browser storage may be unavailable.";
+      }
+    }
+
+    function renderNotes() {
+      noteList.replaceChildren();
+
+      notes.forEach((note, index) => {
+        const item = document.createElement("li");
+        item.className = "note-item";
+
+        if (note.done) item.classList.add("done");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = note.done;
+        checkbox.setAttribute("aria-label", "Mark note complete");
+
+        checkbox.addEventListener("change", () => {
+          notes[index].done = checkbox.checked;
+          saveNotes();
+          renderNotes();
+        });
+
+        const text = document.createElement("span");
+        text.className = "note-text";
+        text.textContent = `${index + 1}. ${note.text}`;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "delete-button";
+        remove.textContent = "Delete";
+
+        remove.addEventListener("click", () => {
+          notes.splice(index, 1);
+          saveNotes();
+          renderNotes();
+        });
+
+        item.append(checkbox, text, remove);
+        noteList.appendChild(item);
+      });
+
+      const completed = notes.filter(note => note.done).length;
+      noteCount.textContent =
+        `${notes.length} notes · ${completed} completed`;
+    }
+
+    noteForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const text = noteInput.value.trim();
+      if (!text) return;
+
+      notes.push({ text, done: false });
+      saveNotes();
+      renderNotes();
+
+      noteInput.value = "";
+      noteInput.focus();
+    });
+
+    document.getElementById("clearCompleted")
+      .addEventListener("click", () => {
+        notes = notes.filter(note => !note.done);
+        saveNotes();
+        renderNotes();
+      });
+
+    document.getElementById("resetNotes")
+      .addEventListener("click", () => {
+        if (!confirm("Replace your current notes with the original five notes?")) {
+          return;
+        }
+
+        notes = originalNotes.map(text => ({
+          text,
+          done: false
+        }));
+
+        saveNotes();
+        renderNotes();
+      });
+
+    renderNotes();
+
+    // MUSIC CONTROLS
     function loadPlaylist(index, autoplay = true) {
-      currentPlaylist =
-        (index + playlists.length) % playlists.length;
+      currentPlaylist = (index + playlists.length) % playlists.length;
 
       const url = new URL(
         "https://www.youtube.com/embed/videoseries"
       );
 
-      url.searchParams.set(
-        "list",
-        playlists[currentPlaylist]
-      );
+      url.searchParams.set("list", playlists[currentPlaylist]);
       url.searchParams.set("enablejsapi", "1");
       url.searchParams.set("autoplay", autoplay ? "1" : "0");
       url.searchParams.set("playsinline", "1");
-      url.searchParams.set("origin", window.location.origin);
+      url.searchParams.set("origin", location.origin);
 
       music.src = url.toString();
       started = autoplay;
@@ -100,43 +341,53 @@
       music.contentWindow.postMessage(
         JSON.stringify({
           event: "command",
-          func: func,
+          func,
           args: []
         }),
         "https://www.youtube.com"
       );
     }
 
-    // Start music on the first page click.
+    // Start the default playlist after the first click.
     document.addEventListener("click", function startOnce() {
       if (!started) {
         loadPlaylist(currentPlaylist, true);
       }
     }, { once: true });
 
-    // The only keyboard shortcut: Ctrl + P
-    document.addEventListener("keydown", function(event) {
+    // ONLY KEYBOARD SHORTCUT: Ctrl + P
+    document.addEventListener("keydown", event => {
       if (
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        event.key.toLowerCase() === "p"
+        !event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.key.toLowerCase() !== "p"
       ) {
-        event.preventDefault();
-
-        if (!started) {
-          loadPlaylist(currentPlaylist, true);
-          return;
-        }
-
-        if (paused) {
-          sendYouTubeCommand("playVideo");
-          paused = false;
-        } else {
-          sendYouTubeCommand("pauseVideo");
-          paused = true;
-        }
+        return;
       }
+
+      const target = event.target;
+
+      // Keep Ctrl+P available while typing in the note box.
+      if (
+        target instanceof HTMLElement &&
+        (
+          target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (!started) {
+        loadPlaylist(currentPlaylist, true);
+        return;
+      }
+
+      sendYouTubeCommand(paused ? "playVideo" : "pauseVideo");
+      paused = !paused;
     });
   </script>
 </body>
