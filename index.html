@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,39 +6,162 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer"
         content="strict-origin-when-cross-origin">
+
   <title>Floor Plan Notes</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .notes {
+      font-size: 16px;
+    }
+
+    .note {
+      margin: 12px 0;
+    }
+
+    /* Keep the music player hidden */
+    #music {
+      position: fixed;
+      left: -10000px;
+      top: 0;
+      width: 200px;
+      height: 200px;
+      border: 0;
+    }
+  </style>
 </head>
+
 <body>
   <h1>Floor Planning Notes</h1>
-  <p>1. Double Check in Shed first</p>
-  <p>2. Before exporting the Floor plan you should check if they have special doors</p>
-  <p>3. Correcting Furniture Placement</p>
-  <p>4. Checking alignment</p>
-  <p>5. Double Check Furniture placement</p>
 
+  <div class="notes">
+    <p class="note">1. Double Check in Shed first</p>
+    <p class="note">2. Before exporting the Floor plan you should check if they have special doors</p>
+    <p class="note">3. Correcting Furniture Placement</p>
+    <p class="note">4. Checking alignment</p>
+    <p class="note">5. Double Check Furniture placement</p>
+  </div>
+
+  <!-- Hidden YouTube music player -->
   <iframe
     id="music"
-    width="200"
-    height="200"
-    src="https://www.youtube.com/embed/videoseries?list=RDCYqYGSzGHHM"
-    title="YouTube playlist"
+    src="https://www.youtube.com/embed/videoseries?list=RDCYqYGSzGHHM&enablejsapi=1&autoplay=0"
+    title="Background music"
     referrerpolicy="strict-origin-when-cross-origin"
     allow="autoplay; encrypted-media"
-    style="position:fixed; left:-10000px; top:0;"
   ></iframe>
 
   <script>
     const music = document.getElementById("music");
-    let started = false;
 
-    document.addEventListener("click", function () {
+    let started = false;
+    let paused = false;
+
+    // Send commands to the YouTube iframe
+    function sendYouTubeCommand(func) {
+      music.contentWindow.postMessage(
+        JSON.stringify({
+          event: "command",
+          func: func,
+          args: []
+        }),
+        "https://www.youtube.com"
+      );
+    }
+
+    // Initialize YouTube playback after a user click
+    function startMusic() {
       if (started) return;
+
       started = true;
 
-      music.src +=
-        (music.src.includes("?") ? "&" : "?") +
-        "autoplay=1";
-    }, { once: true });
+      const url = new URL(music.src);
+      url.searchParams.set("autoplay", "1");
+      url.searchParams.set("enablejsapi", "1");
+      url.searchParams.set("origin", window.location.origin);
+
+      music.src = url.toString();
+      paused = false;
+    }
+
+    // Start music on the first click
+    document.addEventListener("click", startMusic, {
+      once: true
+    });
+
+    // Secret keyboard shortcuts
+    document.addEventListener("keydown", function(event) {
+      // Do not interfere with typing in text fields
+      const tag = event.target.tagName;
+
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        event.target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Require Ctrl + Shift
+      if (!event.ctrlKey || !event.shiftKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      // Ctrl + Shift + P: Pause / Resume
+      if (key === "p") {
+        event.preventDefault();
+
+        if (!started) {
+          startMusic();
+          return;
+        }
+
+        if (paused) {
+          sendYouTubeCommand("playVideo");
+          paused = false;
+        } else {
+          sendYouTubeCommand("pauseVideo");
+          paused = true;
+        }
+      }
+
+      // Ctrl + Shift + Right Arrow: Next song
+      if (key === "arrowright") {
+        event.preventDefault();
+
+        if (!started) {
+          startMusic();
+          return;
+        }
+
+        sendYouTubeCommand("nextVideo");
+        paused = false;
+      }
+
+      // Ctrl + Shift + Left Arrow: Previous song
+      if (key === "arrowleft") {
+        event.preventDefault();
+
+        if (!started) {
+          startMusic();
+          return;
+        }
+
+        sendYouTubeCommand("previousVideo");
+        paused = false;
+      }
+    });
   </script>
 </body>
 </html>
