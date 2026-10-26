@@ -5,19 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer"
         content="strict-origin-when-cross-origin">
-  <title>YouTube Music Test</title>
+  <title>My Music Website</title>
 </head>
 <body>
-  <h3>Music Test</h3>
+  <h1>Floor Planning Notes</h1>
+  <p>1. Double Check in Shed first</p>
+  <p>2. Before exporting the Floor plan you should check if they have special doors</p>
+  <p>3. Correcting Furniture Placement</p>
+  <p>4. Checking alignment</p>
+  <p>5. Double Check Furniture placement</p>
 
   <iframe
-    width="320"
+    id="music"
+    width="200"
     height="200"
-    src="https://www.youtube.com/embed/CYqYGSzGHHM"
-    title="YouTube music"
+    src="https://www.youtube.com/embed/videoseries?list=YOUR_PLAYLIST_ID"
+    title="YouTube playlist"
     referrerpolicy="strict-origin-when-cross-origin"
     allow="autoplay; encrypted-media"
-    allowfullscreen>
-  </iframe>
+    style="position:fixed; left:-10000px; top:0;"
+  ></iframe>
+
+  <script>
+    const music = document.getElementById("music");
+    let started = false;
+
+    document.addEventListener("click", function () {
+      if (started) return;
+      started = true;
+
+      music.src +=
+        (music.src.includes("?") ? "&" : "?") +
+        "autoplay=1";
+    }, { once: true });
+  </script>
 </body>
 </html>
