@@ -355,40 +355,66 @@
       }
     }, { once: true });
 
-    // ONLY KEYBOARD SHORTCUT: Ctrl + P
-    document.addEventListener("keydown", event => {
-      if (
-        !event.ctrlKey ||
-        event.altKey ||
-        event.metaKey ||
-        event.key.toLowerCase() !== "p"
-      ) {
-        return;
-      }
 
-      const target = event.target;
+document.addEventListener("keydown", event => {
+  if (
+    !event.ctrlKey ||
+    event.altKey ||
+    event.metaKey
+  ) {
+    return;
+  }
 
-      // Keep Ctrl+P available while typing in the note box.
-      if (
-        target instanceof HTMLElement &&
-        (
-          target.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-        )
-      ) {
-        return;
-      }
+  const target = event.target;
 
-      event.preventDefault();
+  if (
+    target instanceof HTMLElement &&
+    (
+      target.isContentEditable ||
+      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+    )
+  ) {
+    return;
+  }
 
-      if (!started) {
-        loadPlaylist(currentPlaylist, true);
-        return;
-      }
+  const key = event.key.toLowerCase();
 
-      sendYouTubeCommand(paused ? "playVideo" : "pauseVideo");
-      paused = !paused;
-    });
+  if (key === "p") {
+    event.preventDefault();
+
+    if (!started) {
+      loadPlaylist(currentPlaylist, true);
+      return;
+    }
+
+    sendYouTubeCommand(paused ? "playVideo" : "pauseVideo");
+    paused = !paused;
+  }
+
+  if (key === "arrowright") {
+    event.preventDefault();
+
+    if (!started) {
+      loadPlaylist(currentPlaylist, true);
+      return;
+    }
+
+    sendYouTubeCommand("nextVideo");
+    paused = false;
+  }
+
+  if (key === "arrowleft") {
+    event.preventDefault();
+
+    if (!started) {
+      loadPlaylist(currentPlaylist, true);
+      return;
+    }
+
+    sendYouTubeCommand("previousVideo");
+    paused = false;
+  }
+});
   </script>
 </body>
 </html>
